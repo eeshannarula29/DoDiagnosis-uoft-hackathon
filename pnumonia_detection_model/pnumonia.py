@@ -1,0 +1,60 @@
+import cv2
+
+from keras.layers import Conv2D, MaxPooling2D, Dense, Dropout, Input, Flatten, SeparableConv2D
+from keras.layers.normalization import BatchNormalization
+from keras.models import Model
+
+
+def edit_photo(path: object) -> object:
+    img = cv2.resize(cv2.imread(path), (224, 224))
+    return img.reshape(1, 224, 224, 3)
+
+
+def get_prediction(a: list) -> str:
+    i = list(a[0]).index(max(list(a[0])))
+    if i == 0:
+        return 'NORMAL'
+    elif i == 1:
+        return 'PNEUMONIA'
+
+
+def build_model_pnumonia() -> Model:
+    input_img = Input(shape=(224, 224, 3), name='ImageInput')
+    x = Conv2D(64, (3, 3), activation='relu', padding='same', name='Conv1_1')(input_img)
+    x = Conv2D(64, (3, 3), activation='relu', padding='same', name='Conv1_2')(x)
+    x = MaxPooling2D((2, 2), name='pool1')(x)
+
+    x = SeparableConv2D(128, (3, 3), activation='relu', padding='same', name='Conv2_1')(x)
+    x = SeparableConv2D(128, (3, 3), activation='relu', padding='same', name='Conv2_2')(x)
+    x = MaxPooling2D((2, 2), name='pool2')(x)
+
+    x = SeparableConv2D(256, (3, 3), activation='relu', padding='same', name='Conv3_1')(x)
+    x = BatchNormalization(name='bn1')(x)
+    x = SeparableConv2D(256, (3, 3), activation='relu', padding='same', name='Conv3_2')(x)
+    x = BatchNormalization(name='bn2')(x)
+    x = SeparableConv2D(256, (3, 3), activation='relu', padding='same', name='Conv3_3')(x)
+    x = MaxPooling2D((2, 2), name='pool3')(x)
+
+    x = SeparableConv2D(512, (3, 3), activation='relu', padding='same', name='Conv4_1')(x)
+    x = BatchNormalization(name='bn3')(x)
+    x = SeparableConv2D(512, (3, 3), activation='relu', padding='same', name='Conv4_2')(x)
+    x = BatchNormalization(name='bn4')(x)
+    x = SeparableConv2D(512, (3, 3), activation='relu', padding='same', name='Conv4_3')(x)
+    x = MaxPooling2D((2, 2), name='pool4')(x)
+
+    x = Flatten(name='flatten')(x)
+    x = Dense(1024, activation='relu', name='fc1')(x)
+    x = Dropout(0.7, name='dropout1')(x)
+    x = Dense(512, activation='relu', name='fc2')(x)
+    x = Dropout(0.5, name='dropout2')(x)
+    x = Dense(2, activation='softmax', name='fc3')(x)
+
+    model = Model(inputs=input_img, outputs=x)
+    model.load_weights('models/pnumonia.h5')
+    return model
+
+
+def predict_pnumonia(path, model) -> str:
+    if path is not None:
+        prediction = get_prediction(model.predict(edit_photo(path)))
+        return prediction
