@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, redirect, request
+from flask import Flask, render_template, url_for, redirect, request, session
 from typing import Any
 import os
 from load_models import load_models
@@ -6,19 +6,30 @@ from pnumonia_detection_model.pnumonia import predict_pnumonia
 from malaria.malaria import predict_malaria
 from heart_disease.heart_disease import predict_heart_disease
 
-
 app = Flask(__name__)
+app.secret_key = 'admin'
 
-
-@app.route('/')
+@app.route('/home')
 def index() -> Any:
     return render_template('index.html')
 
 
+@app.route('/')
+def login_page() -> Any:
+    return render_template('login.html')
+
+
+@app.route('/login', methods=['POST'])
+def login() -> Any:
+    if request.method == 'POST':
+        session['username'] = request.form['uname']
+        return redirect('/home')
+
+
 @app.route('/submit_pnumonia', methods=['GET'])
 def submit_pnumonia() -> Any:
-    user = request.args.get('pneumonia')
-    return redirect(url_for('pnumonia_result', filename=user))
+    filename = request.args.get('pneumonia')
+    return redirect(url_for('pnumonia_result', filename=filename))
 
 
 @app.route('/results_pnumonia/<filename>')
@@ -28,7 +39,7 @@ def pnumonia_result(filename: str) -> Any:
         model = load_models()['pnumonia']
         return render_template('pnumonia_result.html', result=predict_pnumonia(path, model))
     else:
-        return redirect('/')
+        return redirect('/home')
 
 
 @app.route('/submit_malaria', methods=['GET'])
@@ -44,7 +55,7 @@ def malaria_result(filename: str) -> Any:
         model = load_models()['malaria']
         return render_template('pnumonia_result.html', result=predict_malaria(path, model))
     else:
-        return request('/')
+        return request('/home')
 
 
 @app.route('/submit_heart_disease', methods=['GET'])
